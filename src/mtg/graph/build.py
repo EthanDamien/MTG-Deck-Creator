@@ -1,7 +1,6 @@
 """LangGraph orchestrator wiring."""
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
-from langgraph.checkpoint.memory import MemorySaver
 
 from mtg.graph.state import DeckBuildState
 from mtg.graph.nodes.parse_query import parse_query
@@ -34,14 +33,26 @@ def route_after_advance(state: DeckBuildState) -> list[Send] | str:
         return "hard_validate"
     plan = state["plan"]
     wave = state["current_wave"]
-    return [
+    sends = [
         Send("worker", {"slot": s, "deck_context": state})
         for s in plan.slots
         if s.wave == wave
     ]
+    if not sends:
+        # No slots assigned to this wave — skip straight to validation
+        print(f"[graph] wave {wave} empty, going to hard_validate", flush=True)
+        return "hard_validate"
+    return sends
+
+
+_MAX_REPAIRS = 3
 
 
 def route_after_hard(state: DeckBuildState) -> str:
+    attempts = state.get("repair_attempts", 0)
+    if attempts >= _MAX_REPAIRS:
+        print(f"[graph] repair limit reached ({attempts}), skipping to soft_validate", flush=True)
+        return "soft_validate"
     critical = [i for i in state.get("issues", []) if i.severity == "critical"]
     return "repair" if critical else "soft_validate"
 
@@ -49,8 +60,10 @@ def route_after_hard(state: DeckBuildState) -> str:
 def route_after_soft(state: DeckBuildState) -> str:
     issues = state.get("issues", [])
     attempts = state.get("repair_attempts", 0)
-    if issues and attempts < 3:
+    if issues and attempts < _MAX_REPAIRS:
         return "repair"
+    if attempts >= _MAX_REPAIRS:
+        print(f"[graph] repair limit reached ({attempts}), finalizing", flush=True)
     return "finalize"
 
 
@@ -93,4 +106,4 @@ builder.add_conditional_edges(
 builder.add_edge("repair", "soft_validate")
 builder.add_edge("finalize", END)
 
-app = builder.compile(checkpointer=MemorySaver())
+app = builder.compile()

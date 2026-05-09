@@ -40,8 +40,8 @@ def picker(state: DeckBuildState) -> dict:
     for role, slot in wave_slots.items():
         candidates = candidate_map.get(role, [])
         card_lines = "\n".join(
-            f"  - {c['name']} [{c['type_line']}] {c['mana_cost']}: {c['reasoning']}"
-            for c in candidates[:15]
+            f"  - {c['name']} [{c['type_line']}] {c['mana_cost']}: {c['reasoning'][:80]}"
+            for c in candidates[:10]
         )
         slots_text += f"\n### Slot: {role} (need exactly {slot.count} cards)\n{card_lines}\n"
 
@@ -62,10 +62,25 @@ def picker(state: DeckBuildState) -> dict:
     )
 
     if output is None or not hasattr(output, "picks"):
-        print(f"[picker] WARNING: LLM returned None/invalid for wave {current_wave}, using empty picks", flush=True)
+        print(f"[picker] WARNING: LLM returned None/invalid for wave {current_wave}, using fallback", flush=True)
         new_picks = []
     else:
         new_picks = output.picks or []
+
+    # Fallback: if LLM gave 0 picks, take top RAG candidates directly
+    if not new_picks:
+        print(f"[picker] FALLBACK: LLM returned 0 picks for wave {current_wave}, using top RAG candidates", flush=True)
+        for role, slot in wave_slots.items():
+            candidates = candidate_map.get(role, [])
+            count = 0
+            for c in candidates:
+                if c["name"] not in used_cards:
+                    new_picks.append(Pick(slot=role, card=c["name"], reason="top RAG match"))
+                    used_cards.add(c["name"])
+                    count += 1
+                    if count >= slot.count:
+                        break
+        print(f"[picker] FALLBACK produced {len(new_picks)} picks", flush=True)
 
     new_used = list(used_cards | {p.card for p in new_picks})
     print(f"[picker] wave={current_wave} done in {time.time()-t0:.1f}s → {len(new_picks)} picks", flush=True)

@@ -1,84 +1,252 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MTG Deck Builder</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MTG Deck Builder</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    header { background: #16213e; padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
-    header h1 { font-size: 1.4rem; color: #e94560; }
+  body {
+    background: #0f0f0f;
+    color: #e8e8e8;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
 
-    .build-form { padding: 1.5rem 2rem; background: #16213e; border-bottom: 1px solid #0f3460; }
-    .build-form textarea {
-      width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid #0f3460;
-      background: #0f3460; color: #e0e0e0; font-size: 1rem; resize: vertical; min-height: 80px;
-    }
-    .build-form button {
-      margin-top: 0.75rem; padding: 0.6rem 1.5rem; background: #e94560; color: #fff;
-      border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
-    }
-    .build-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+  header {
+    padding: 18px 24px;
+    border-bottom: 1px solid #222;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #111;
+    flex-shrink: 0;
+  }
 
-    #status { padding: 0.5rem 2rem; font-size: 0.9rem; color: #aaa; min-height: 1.5rem; }
+  header h1 { font-size: 1.3rem; letter-spacing: 0.04em; color: #c89b3c; }
 
-    #deck-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 1rem;
-      padding: 1.5rem 2rem;
-    }
+  .main {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    height: calc(100vh - 57px);
+  }
 
-    .card-tile {
-      background: #16213e; border-radius: 8px; overflow: hidden;
-      cursor: pointer; transition: transform 0.15s;
-      border: 1px solid #0f3460;
-    }
-    .card-tile:hover { transform: scale(1.04); border-color: #e94560; }
-    .card-tile img { width: 100%; display: block; }
-    .card-tile .info { padding: 0.5rem; }
-    .card-tile .name { font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .card-tile .role-pill {
-      display: inline-block; font-size: 0.65rem; padding: 1px 6px;
-      border-radius: 99px; background: #0f3460; color: #aaa; margin-top: 4px;
-    }
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    border-right: 1px solid #1e1e1e;
+    background: #0c0c0c;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 
-    /* Modal */
-    #modal-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-      z-index: 100; align-items: center; justify-content: center;
-    }
-    #modal-overlay.open { display: flex; }
-    #modal {
-      background: #16213e; border-radius: 10px; padding: 1.5rem; max-width: 480px; width: 90%;
-      position: relative; max-height: 90vh; overflow-y: auto;
-    }
-    #modal h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
-    #modal img { width: 100%; border-radius: 6px; margin: 0.5rem 0; }
-    #modal .detail { font-size: 0.85rem; color: #ccc; margin-top: 0.5rem; line-height: 1.5; }
-    #modal .close-btn {
-      position: absolute; top: 0.75rem; right: 1rem;
-      background: none; border: none; color: #aaa; font-size: 1.4rem; cursor: pointer;
-    }
-    #modal .reason { font-size: 0.85rem; color: #90caf9; margin-top: 0.75rem; font-style: italic; }
-    #modal .issue-badge {
-      display: inline-block; background: #b71c1c; color: #fff;
-      font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; margin-top: 0.5rem;
-    }
+  .sidebar-header {
+    padding: 14px 16px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #555;
+    border-bottom: 1px solid #1e1e1e;
+    flex-shrink: 0;
+  }
 
-    .issues-panel {
-      margin: 0 2rem 1rem; padding: 1rem; background: #0f3460;
-      border-radius: 8px; font-size: 0.85rem;
-    }
-    .issues-panel h3 { margin-bottom: 0.5rem; color: #f48fb1; }
-    .issue-item { margin-bottom: 0.4rem; }
-    .issue-item .sev { font-weight: 600; }
-    .sev-critical { color: #ef5350; }
-    .sev-high { color: #ffa726; }
-    .sev-medium { color: #ffee58; }
-  </style>
+  .sidebar-list { overflow-y: auto; flex: 1; }
+
+  .sidebar-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid #161616;
+    cursor: pointer;
+    transition: background 0.1s;
+    border-left: 2px solid transparent;
+  }
+
+  .sidebar-item:hover { background: #141414; }
+  .sidebar-item.active { background: #1a1a1a; border-left-color: #c89b3c; }
+
+  .sidebar-item .si-query {
+    font-size: 0.8rem;
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sidebar-item .si-meta { font-size: 0.68rem; color: #555; margin-top: 3px; }
+
+  .sidebar-empty { padding: 24px 16px; font-size: 0.78rem; color: #444; text-align: center; }
+
+  /* ── Content ── */
+  .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .build-form {
+    display: flex;
+    gap: 10px;
+    padding: 18px 24px;
+    background: #111;
+    border-bottom: 1px solid #1e1e1e;
+    flex-shrink: 0;
+  }
+
+  .build-form input {
+    flex: 1;
+    padding: 10px 14px;
+    background: #1a1a1a;
+    border: 1px solid #2e2e2e;
+    border-radius: 7px;
+    color: #e8e8e8;
+    font-size: 0.95rem;
+  }
+
+  .build-form input:focus { outline: none; border-color: #c89b3c; }
+
+  .build-form button {
+    padding: 10px 24px;
+    background: #c89b3c;
+    color: #0f0f0f;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+
+  .build-form button:hover { background: #dbb84f; }
+  .build-form button:disabled { background: #444; cursor: not-allowed; }
+
+  #status {
+    padding: 7px 24px;
+    font-size: 0.8rem;
+    color: #666;
+    min-height: 32px;
+    flex-shrink: 0;
+  }
+
+  #status.error { color: #e05252; }
+
+  .deck-wrapper { flex: 1; overflow-y: auto; padding: 16px 24px 48px; }
+
+  .deck-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #1e1e1e;
+    margin-bottom: 20px;
+  }
+
+  .deck-meta h2 { font-size: 1rem; color: #c89b3c; }
+  .deck-meta span { font-size: 0.8rem; color: #555; }
+
+  .slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 24px;
+  }
+
+  .slot-section h3 {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #666;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #1e1e1e;
+  }
+
+  .card-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .card-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: #161616;
+    border-radius: 7px;
+    padding: 7px;
+    border: 1px solid #202020;
+    cursor: pointer;
+    transition: border-color 0.12s;
+  }
+
+  .card-item:hover { border-color: #383838; }
+
+  .card-thumb {
+    width: 38px; height: 53px;
+    border-radius: 3px;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .card-thumb-placeholder {
+    width: 38px; height: 53px;
+    border-radius: 3px;
+    background: #222;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.55rem;
+    color: #444;
+  }
+
+  .card-info { flex: 1; min-width: 0; }
+
+  .card-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-reason {
+    font-size: 0.68rem;
+    color: #555;
+    margin-top: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .overlay.active { display: flex; }
+
+  .overlay img {
+    max-height: 90vh;
+    border-radius: 12px;
+    box-shadow: 0 0 60px rgba(0,0,0,0.9);
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid #333;
+    border-top-color: #c89b3c;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
 </head>
 <body>
 
@@ -86,146 +254,178 @@
   <h1>⚔ MTG Deck Builder</h1>
 </header>
 
-<div class="build-form">
-  <textarea id="query" placeholder="Describe your deck… e.g. 'Dragon tribal commander, focus on Ur-Dragon, 5 color'"
-  ></textarea>
-  <br/>
-  <button id="build-btn" onclick="buildDeck()">Build Deck</button>
-</div>
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-header">Past Decks</div>
+    <div class="sidebar-list" id="sidebarList">
+      <div class="sidebar-empty">No decks yet</div>
+    </div>
+  </div>
 
-<div id="status"></div>
-<div id="issues-container"></div>
-<div id="deck-grid"></div>
-
-<div id="modal-overlay" onclick="closeModal(event)">
-  <div id="modal">
-    <button class="close-btn" onclick="closeModal()">×</button>
-    <h2 id="modal-name"></h2>
-    <img id="modal-img" src="" alt="" />
-    <div id="modal-detail" class="detail"></div>
-    <div id="modal-reason" class="reason"></div>
-    <div id="modal-issue"></div>
+  <div class="content">
+    <div class="build-form">
+      <input id="query" type="text"
+        placeholder="e.g. Mono-green stompy commander with Ghalta"
+        value="Mono-green stompy commander with Ghalta" />
+      <button id="buildBtn" onclick="buildDeck()">Build Deck</button>
+    </div>
+    <div id="status"></div>
+    <div class="deck-wrapper" id="deckWrapper"></div>
   </div>
 </div>
 
+<div class="overlay" id="overlay" onclick="closeOverlay()">
+  <img id="overlayImg" src="" alt="" />
+</div>
+
 <script>
-  let currentDeck = [];
-  let currentIssues = [];
+const SLOT_ORDER = ['commander','theme','ramp','draw','removal','wipes','protection','lands'];
+let _pastDecks = [];
+let _activeId = null;
 
-  async function buildDeck() {
-    const query = document.getElementById('query').value.trim();
-    if (!query) return;
+async function loadPastDecks() {
+  try {
+    const res = await fetch('/api/decks');
+    _pastDecks = await res.json();
+    renderSidebar();
+    if (_pastDecks.length) showDeck(_pastDecks[0].id);
+  } catch (e) { console.warn('Could not load past decks', e); }
+}
 
-    const btn = document.getElementById('build-btn');
-    btn.disabled = true;
-    setStatus('Building deck… this may take 20–30 seconds.');
-    document.getElementById('deck-grid').innerHTML = '';
-    document.getElementById('issues-container').innerHTML = '';
+function renderSidebar() {
+  const list = document.getElementById('sidebarList');
+  if (!_pastDecks.length) {
+    list.innerHTML = '<div class="sidebar-empty">No decks yet</div>';
+    return;
+  }
+  list.innerHTML = _pastDecks.map(d => `
+    <div class="sidebar-item${d.id === _activeId ? ' active' : ''}" onclick="showDeck(${d.id})">
+      <div class="si-query">${escHtml(d.query)}</div>
+      <div class="si-meta">${d.picks.length} cards &middot; ${fmtDate(d.created_at)}</div>
+    </div>
+  `).join('');
+}
 
-    try {
-      const res = await fetch('/api/build', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      });
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data = await res.json();
-      currentDeck = data.deck || [];
-      currentIssues = data.issues || [];
-      renderDeck(currentDeck);
-      renderIssues(currentIssues);
-      setStatus(`Done — ${currentDeck.length} cards.`);
-    } catch (e) {
-      setStatus(`Error: ${e.message}`);
-    } finally {
-      btn.disabled = false;
+function showDeck(id) {
+  const deck = _pastDecks.find(d => d.id === id);
+  if (!deck) return;
+  _activeId = id;
+  renderSidebar();
+  document.getElementById('query').value = deck.query;
+  document.getElementById('status').textContent = `${deck.picks.length} cards`;
+  renderDeck({ deck: deck.picks }, deck.query);
+}
+
+async function buildDeck() {
+  const query = document.getElementById('query').value.trim();
+  if (!query) return;
+  const btn = document.getElementById('buildBtn');
+  const status = document.getElementById('status');
+  const wrapper = document.getElementById('deckWrapper');
+
+  btn.disabled = true;
+  status.className = '';
+  status.innerHTML = '<span class="spinner"></span>Building… ~30s';
+  wrapper.innerHTML = '';
+
+  try {
+    const res = await fetch('/api/build', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Server error');
     }
+    const data = await res.json();
+    _pastDecks.unshift({ id: data.id, query, created_at: data.created_at, picks: data.deck, plan: data.plan, issues: data.issues });
+    _activeId = data.id;
+    renderSidebar();
+    renderDeck(data, query);
+    status.textContent = `Done — ${data.deck.length} cards`;
+  } catch (e) {
+    status.className = 'error';
+    status.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderDeck(data, query) {
+  const wrapper = document.getElementById('deckWrapper');
+  wrapper.innerHTML = '';
+
+  const bySlot = {};
+  for (const pick of data.deck) {
+    const slot = pick.slot || 'other';
+    if (!bySlot[slot]) bySlot[slot] = [];
+    bySlot[slot].push(pick);
   }
 
-  function setStatus(msg) {
-    document.getElementById('status').textContent = msg;
+  for (const slot of Object.keys(bySlot)) {
+    const seen = new Set();
+    bySlot[slot] = bySlot[slot].filter(p => { if (seen.has(p.card)) return false; seen.add(p.card); return true; });
   }
 
-  function renderIssues(issues) {
-    const container = document.getElementById('issues-container');
-    if (!issues.length) { container.innerHTML = ''; return; }
-    const html = issues.map(i => `
-      <div class="issue-item">
-        <span class="sev sev-${i.severity}">[${i.severity.toUpperCase()}]</span>
-        ${i.issue}: ${i.detail}
-      </div>
-    `).join('');
-    container.innerHTML = `<div class="issues-panel"><h3>Validation Notes</h3>${html}</div>`;
-  }
+  const orderedSlots = [
+    ...SLOT_ORDER.filter(s => bySlot[s]),
+    ...Object.keys(bySlot).filter(s => !SLOT_ORDER.includes(s)),
+  ];
 
-  function renderDeck(deck) {
-    const grid = document.getElementById('deck-grid');
-    // Group by slot
-    const bySlot = {};
-    for (const pick of deck) {
-      (bySlot[pick.slot] = bySlot[pick.slot] || []).push(pick);
-    }
-    const order = ['commander', 'theme', 'ramp', 'draw', 'protection', 'removal', 'wipes', 'lands'];
-    const slots = [...order.filter(s => bySlot[s]), ...Object.keys(bySlot).filter(s => !order.includes(s))];
+  const meta = document.createElement('div');
+  meta.className = 'deck-meta';
+  meta.innerHTML = `<h2>${escHtml(query || '')}</h2><span>${data.deck.length} cards &middot; ${orderedSlots.length} slots</span>`;
+  wrapper.appendChild(meta);
 
-    grid.innerHTML = slots.map(slot =>
-      bySlot[slot].map(pick => cardTile(pick)).join('')
-    ).join('');
-  }
+  const grid = document.createElement('div');
+  grid.className = 'slots-grid';
 
-  function cardTile(pick) {
-    const safeCard = pick.card.replace(/"/g, '&quot;');
-    const safeReason = (pick.reason || '').replace(/"/g, '&quot;');
-    return `
-      <div class="card-tile" onclick="showCard('${safeCard}', '${safeReason}', '${pick.slot}')">
-        <img src="https://api.scryfall.com/cards/named?format=image&version=normal&fuzzy=${encodeURIComponent(pick.card)}"
-             alt="${safeCard}" onerror="this.src=''" loading="lazy" />
-        <div class="info">
-          <div class="name">${pick.card}</div>
-          <span class="role-pill">${pick.slot}</span>
-        </div>
-      </div>
-    `;
-  }
+  for (const slot of orderedSlots) {
+    const picks = bySlot[slot];
+    const section = document.createElement('div');
+    section.className = 'slot-section';
+    section.innerHTML = `<h3>${escHtml(slot)} <span style="color:#444">(${picks.length})</span></h3>`;
+    const list = document.createElement('div');
+    list.className = 'card-list';
 
-  async function showCard(name, reason, slot) {
-    document.getElementById('modal-name').textContent = name;
-    document.getElementById('modal-reason').textContent = reason ? `"${reason}"` : '';
-    document.getElementById('modal-img').src =
-      `https://api.scryfall.com/cards/named?format=image&version=normal&fuzzy=${encodeURIComponent(name)}`;
-    document.getElementById('modal-detail').textContent = '';
-    document.getElementById('modal-issue').innerHTML = '';
-
-    // Flag any issues touching this card
-    const cardIssues = currentIssues.filter(i => i.target_card === name);
-    if (cardIssues.length) {
-      document.getElementById('modal-issue').innerHTML = cardIssues.map(i =>
-        `<span class="issue-badge">${i.severity}: ${i.issue}</span>`
-      ).join(' ');
+    for (const pick of picks) {
+      const item = document.createElement('div');
+      item.className = 'card-item';
+      item.onclick = () => openOverlay(pick.image_uri);
+      const thumb = pick.image_uri
+        ? `<img class="card-thumb" src="${escHtml(pick.image_uri)}" alt="${escHtml(pick.card)}" loading="lazy" />`
+        : `<div class="card-thumb-placeholder">no img</div>`;
+      item.innerHTML = `${thumb}<div class="card-info"><div class="card-name">${escHtml(pick.card)}</div><div class="card-reason">${escHtml(pick.reason || '')}</div></div>`;
+      list.appendChild(item);
     }
 
-    // Fetch oracle text from our API
-    try {
-      const res = await fetch(`/api/card/${encodeURIComponent(name)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const oracle = data.oracle_text || (data.card_faces && data.card_faces[0].oracle_text) || '';
-        document.getElementById('modal-detail').textContent = oracle;
-      }
-    } catch (_) {}
-
-    document.getElementById('modal-overlay').classList.add('open');
+    section.appendChild(list);
+    grid.appendChild(section);
   }
+  wrapper.appendChild(grid);
+}
 
-  function closeModal(e) {
-    if (!e || e.target === document.getElementById('modal-overlay')) {
-      document.getElementById('modal-overlay').classList.remove('open');
-    }
-  }
+function openOverlay(uri) {
+  if (!uri) return;
+  document.getElementById('overlayImg').src = uri;
+  document.getElementById('overlay').classList.add('active');
+}
 
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeModal();
-  });
+function closeOverlay() { document.getElementById('overlay').classList.remove('active'); }
+
+document.getElementById('query').addEventListener('keydown', e => { if (e.key === 'Enter') buildDeck(); });
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadPastDecks();
 </script>
 </body>
 </html>

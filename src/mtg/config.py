@@ -11,9 +11,14 @@ def require(key: str) -> str:
     return val
 
 
-OPENROUTER_API_KEY = require("OPENROUTER_API_KEY")
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "openai")
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-LLM_MODEL = os.environ.get("LLM_MODEL", "stepfun/step-3.5-flash:free")
+OPENROUTER_MODEL = os.environ.get("OPENROUTER_MODEL", "stepfun/step-3.5-flash")
 OPENROUTER_REFERER = os.environ.get("OPENROUTER_REFERER", "http://localhost:8000")
 OPENROUTER_TITLE = os.environ.get("OPENROUTER_TITLE", "MTG Deck Builder")
 
