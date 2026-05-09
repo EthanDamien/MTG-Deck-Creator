@@ -1,0 +1,8 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "mtg_deck_builder": "./src/mtg/graph/build.py:app"
+  },
+  "env": ".env",
+  "watch": ["src/"]
+}

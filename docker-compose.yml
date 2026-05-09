@@ -1,0 +1,14 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: mtg-pgvector
+    ports: ["5433:5432"]
+    environment:
+      POSTGRES_USER: mtg
+      POSTGRES_PASSWORD: mtg
+      POSTGRES_DB: mtgdb
+    volumes:
+      - mtg_pgdata:/var/lib/postgresql/data
+
+volumes:
+  mtg_pgdata:

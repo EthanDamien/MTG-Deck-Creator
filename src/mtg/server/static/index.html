@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MTG Deck Builder</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+
+    header { background: #16213e; padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
+    header h1 { font-size: 1.4rem; color: #e94560; }
+
+    .build-form { padding: 1.5rem 2rem; background: #16213e; border-bottom: 1px solid #0f3460; }
+    .build-form textarea {
+      width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid #0f3460;
+      background: #0f3460; color: #e0e0e0; font-size: 1rem; resize: vertical; min-height: 80px;
+    }
+    .build-form button {
+      margin-top: 0.75rem; padding: 0.6rem 1.5rem; background: #e94560; color: #fff;
+      border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
+    }
+    .build-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #status { padding: 0.5rem 2rem; font-size: 0.9rem; color: #aaa; min-height: 1.5rem; }
+
+    #deck-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 1rem;
+      padding: 1.5rem 2rem;
+    }
+
+    .card-tile {
+      background: #16213e; border-radius: 8px; overflow: hidden;
+      cursor: pointer; transition: transform 0.15s;
+      border: 1px solid #0f3460;
+    }
+    .card-tile:hover { transform: scale(1.04); border-color: #e94560; }
+    .card-tile img { width: 100%; display: block; }
+    .card-tile .info { padding: 0.5rem; }
+    .card-tile .name { font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-tile .role-pill {
+      display: inline-block; font-size: 0.65rem; padding: 1px 6px;
+      border-radius: 99px; background: #0f3460; color: #aaa; margin-top: 4px;
+    }
+
+    /* Modal */
+    #modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      z-index: 100; align-items: center; justify-content: center;
+    }
+    #modal-overlay.open { display: flex; }
+    #modal {
+      background: #16213e; border-radius: 10px; padding: 1.5rem; max-width: 480px; width: 90%;
+      position: relative; max-height: 90vh; overflow-y: auto;
+    }
+    #modal h2 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+    #modal img { width: 100%; border-radius: 6px; margin: 0.5rem 0; }
+    #modal .detail { font-size: 0.85rem; color: #ccc; margin-top: 0.5rem; line-height: 1.5; }
+    #modal .close-btn {
+      position: absolute; top: 0.75rem; right: 1rem;
+      background: none; border: none; color: #aaa; font-size: 1.4rem; cursor: pointer;
+    }
+    #modal .reason { font-size: 0.85rem; color: #90caf9; margin-top: 0.75rem; font-style: italic; }
+    #modal .issue-badge {
+      display: inline-block; background: #b71c1c; color: #fff;
+      font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; margin-top: 0.5rem;
+    }
+
+    .issues-panel {
+      margin: 0 2rem 1rem; padding: 1rem; background: #0f3460;
+      border-radius: 8px; font-size: 0.85rem;
+    }
+    .issues-panel h3 { margin-bottom: 0.5rem; color: #f48fb1; }
+    .issue-item { margin-bottom: 0.4rem; }
+    .issue-item .sev { font-weight: 600; }
+    .sev-critical { color: #ef5350; }
+    .sev-high { color: #ffa726; }
+    .sev-medium { color: #ffee58; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚔ MTG Deck Builder</h1>
+</header>
+
+<div class="build-form">
+  <textarea id="query" placeholder="Describe your deck… e.g. 'Dragon tribal commander, focus on Ur-Dragon, 5 color'"
+  ></textarea>
+  <br/>
+  <button id="build-btn" onclick="buildDeck()">Build Deck</button>
+</div>
+
+<div id="status"></div>
+<div id="issues-container"></div>
+<div id="deck-grid"></div>
+
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal">
+    <button class="close-btn" onclick="closeModal()">×</button>
+    <h2 id="modal-name"></h2>
+    <img id="modal-img" src="" alt="" />
+    <div id="modal-detail" class="detail"></div>
+    <div id="modal-reason" class="reason"></div>
+    <div id="modal-issue"></div>
+  </div>
+</div>
+
+<script>
+  let currentDeck = [];
+  let currentIssues = [];
+
+  async function buildDeck() {
+    const query = document.getElementById('query').value.trim();
+    if (!query) return;
+
+    const btn = document.getElementById('build-btn');
+    btn.disabled = true;
+    setStatus('Building deck… this may take 20–30 seconds.');
+    document.getElementById('deck-grid').innerHTML = '';
+    document.getElementById('issues-container').innerHTML = '';
+
+    try {
+      const res = await fetch('/api/build', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+      });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const data = await res.json();
+      currentDeck = data.deck || [];
+      currentIssues = data.issues || [];
+      renderDeck(currentDeck);
+      renderIssues(currentIssues);
+      setStatus(`Done — ${currentDeck.length} cards.`);
+    } catch (e) {
+      setStatus(`Error: ${e.message}`);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function setStatus(msg) {
+    document.getElementById('status').textContent = msg;
+  }
+
+  function renderIssues(issues) {
+    const container = document.getElementById('issues-container');
+    if (!issues.length) { container.innerHTML = ''; return; }
+    const html = issues.map(i => `
+      <div class="issue-item">
+        <span class="sev sev-${i.severity}">[${i.severity.toUpperCase()}]</span>
+        ${i.issue}: ${i.detail}
+      </div>
+    `).join('');
+    container.innerHTML = `<div class="issues-panel"><h3>Validation Notes</h3>${html}</div>`;
+  }
+
+  function renderDeck(deck) {
+    const grid = document.getElementById('deck-grid');
+    // Group by slot
+    const bySlot = {};
+    for (const pick of deck) {
+      (bySlot[pick.slot] = bySlot[pick.slot] || []).push(pick);
+    }
+    const order = ['commander', 'theme', 'ramp', 'draw', 'protection', 'removal', 'wipes', 'lands'];
+    const slots = [...order.filter(s => bySlot[s]), ...Object.keys(bySlot).filter(s => !order.includes(s))];
+
+    grid.innerHTML = slots.map(slot =>
+      bySlot[slot].map(pick => cardTile(pick)).join('')
+    ).join('');
+  }
+
+  function cardTile(pick) {
+    const safeCard = pick.card.replace(/"/g, '&quot;');
+    const safeReason = (pick.reason || '').replace(/"/g, '&quot;');
+    return `
+      <div class="card-tile" onclick="showCard('${safeCard}', '${safeReason}', '${pick.slot}')">
+        <img src="https://api.scryfall.com/cards/named?format=image&version=normal&fuzzy=${encodeURIComponent(pick.card)}"
+             alt="${safeCard}" onerror="this.src=''" loading="lazy" />
+        <div class="info">
+          <div class="name">${pick.card}</div>
+          <span class="role-pill">${pick.slot}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  async function showCard(name, reason, slot) {
+    document.getElementById('modal-name').textContent = name;
+    document.getElementById('modal-reason').textContent = reason ? `"${reason}"` : '';
+    document.getElementById('modal-img').src =
+      `https://api.scryfall.com/cards/named?format=image&version=normal&fuzzy=${encodeURIComponent(name)}`;
+    document.getElementById('modal-detail').textContent = '';
+    document.getElementById('modal-issue').innerHTML = '';
+
+    // Flag any issues touching this card
+    const cardIssues = currentIssues.filter(i => i.target_card === name);
+    if (cardIssues.length) {
+      document.getElementById('modal-issue').innerHTML = cardIssues.map(i =>
+        `<span class="issue-badge">${i.severity}: ${i.issue}</span>`
+      ).join(' ');
+    }
+
+    // Fetch oracle text from our API
+    try {
+      const res = await fetch(`/api/card/${encodeURIComponent(name)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const oracle = data.oracle_text || (data.card_faces && data.card_faces[0].oracle_text) || '';
+        document.getElementById('modal-detail').textContent = oracle;
+      }
+    } catch (_) {}
+
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function closeModal(e) {
+    if (!e || e.target === document.getElementById('modal-overlay')) {
+      document.getElementById('modal-overlay').classList.remove('open');
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+</script>
+</body>
+</html>
